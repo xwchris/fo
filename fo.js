@@ -1,19 +1,24 @@
+/* eslint no-console: 0 */
+
+// 判断数组
 var isArray = Array.isArray && function (o) {
   return typeof o === 'object' && Object.prototype.toString.call(o) === '[object Array]';
 };
 
-// 执行单个generator
-
-function fo(gs) {
-  // 轮盘
+// 构造Fo实例
+var Fo = function(...gs) {
   this.controlTransfer = false;
+  this.controlMap = {};
   this.controlQueue = isArray(gs) && gs.map(g => ({
     iterator: g(),
     value: null
   })) || [];
-}
+  if (this instanceof Fo) return this;
+  return new Fo(...gs);
+};
 
-fo.prototype.runSingle = function(it, value) {
+// 执行单个generator
+Fo.prototype.runSingle = function(it, value) {
   var ret;
   var self = this;
 
@@ -25,10 +30,10 @@ fo.prototype.runSingle = function(it, value) {
         iterator: it,
         value: val,
       });
-      console.log('control transfer now');
       self.controlTransfer = false;
       return;
     }
+
     // 获取执行结果
     ret = it.next(val);
     var done = ret.done;
@@ -47,20 +52,35 @@ fo.prototype.runSingle = function(it, value) {
   })(value);
 };
 
+// 运行generator
+Fo.prototype.run = function() {
+  var queue = this.controlQueue;
+  var self = this;
+  // 延迟执行 先返回值
+  setTimeout(function() {
+    while (queue.length !== 0) {
+      var result = queue.shift();
+      self.runSingle(result.iterator, result.value);
+    }
+  }, 0);
+  return this;
+};
+
 // 转换控制权
-fo.prototype.transfer = function() {
+Fo.prototype.transfer = function () {
   this.controlTransfer = true;
 };
 
-// 运行generator
-fo.prototype.run = function() {
-  const queue = this.controlQueue;
-  while (queue.length !== 0) {
-    const { iterator, value } = queue.shift();
-    this.runSingle(iterator, value);
+// 空等延迟
+Fo.prototype.delay = function(delay) {
+  var startTime = Date.now();
+  var currentTime = startTime;
+  while(currentTime < startTime + delay) {
+    currentTime = Date.now();
   }
 };
 
-module.exports = function(...gs) {
-  return new fo(gs);
-};
+// 防止修改
+Fo = Object.freeze(Fo);
+
+module.exports = Fo;
