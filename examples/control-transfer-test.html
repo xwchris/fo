@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf8">
+  <title>generator control transfer</title>
+  <style>
+    #table { position:relative; width:450px; height:250px; border:2px solid #000; }
+
+    #net { position:absolute; width:1px; height:100%; left:50%; top:0px; background-color:#000; }
+
+    #ping { position:absolute; width:100px; left:20px; top:20px; }
+
+    #pong { position:absolute; width:100px; right:20px; top:20px; text-align:right; }
+
+    #referee { position:absolute; width:100px; height:30px; left:175px; top:-10px; border:1px solid #000; line-height:30px; text-align:center; font-weight:bold; background-color:#fff; }
+
+  </style>
+</head>
+
+<body>
+  <div id="table">
+    <div id="ping"></div>
+    <div id="net"></div>
+    <div id="pong"></div>
+    <div id="referee"></div>
+  </div>
+  <script src="../fo.js"></script>
+  <script>
+    function message(who, msg) {
+        document.getElementById(who).innerHTML += msg + '<br>';
+      }
+
+      function sleep(delay) {
+        return fo.delay(delay);
+      }
+
+      function* player(table) {
+        var name = table[0].shift();
+        var ball = table[1];
+
+        while (table[2] !== 'CLOSED') {
+          // hit the ball
+          ball.hits++;
+          message(name, ball.hits);
+
+          // delay as ball goes back to other player
+          yield sleep(1000);
+
+          // game still going?
+          if (table[2] !== 'CLOSED') {
+            // ball's now back in other player's court
+            yield fo.transfer();
+          }
+        }
+
+        message(name, 'Game over!');
+      }
+
+      function* referee(table) {
+        var alarm = false;
+
+        // referee sets an alarm timer for the game on
+        // his stopwatch
+        setTimeout(function () { alarm = true; }, 10000);
+
+        // keep the game going until the stopwatch
+        // alarm sounds
+        while (!alarm) {
+          // let the players keep playing
+          yield fo.transfer();
+        }
+
+        // signal to players that the game is over
+        table[2] = 'CLOSED';
+
+        // what does the referee say?
+        message('referee', table[1].hits);
+      }
+
+      var fo = Fo(
+        ['ping', 'pong'],
+        { hits: 0 }
+      ).run(referee, player, player);
+  </script>
+</body>
+</html>
